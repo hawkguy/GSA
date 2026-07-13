@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>Sadhana Ledger — RPG</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: #14171F; color: #EDE7D9;
+    font-family: 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+    padding-bottom: 30px;
+  }
+  .mono { font-family: 'Courier New', ui-monospace, monospace; letter-spacing: 0.02em; }
+  button { font-family: inherit; cursor: pointer; }
+  button:focus-visible, input:focus-visible { outline: 2px solid #C9A24B; outline-offset: 2px; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: #3A4155; border-radius: 4px; }
+
+  /* ===== Header / Character strip ===== */
+  .topbar { padding: 20px 16px 14px; border-bottom: 1px solid #2A2E3D; background: linear-gradient(180deg,#1B1F2A,#14171F); }
+  .headrow { display: flex; align-items: center; gap: 14px; }
+  .seal {
+    width: 58px; height: 58px; border-radius: 50%; border: 2px solid #C9A24B;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    box-shadow: 0 0 0 4px #14171F, 0 0 0 5px #3A3320;
+    background: radial-gradient(circle at 35% 30%, #2A2E1F, #14171F);
+  }
+  .seal span { font-size: 20px; color: #C9A24B; font-weight: 700; }
+  .title-line { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+  .rank-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #8A8F9C; }
+  .name-title { font-size: 17px; font-weight: 700; color: #E8C97A; }
+  .bar-track { height: 7px; border-radius: 4px; background: #242938; overflow: hidden; border: 1px solid #2D3242; margin-top:6px; }
+  .bar-fill { height: 100%; transition: width 0.4s; }
+  .bar-fill.xp { background: linear-gradient(90deg, #4C8C6B, #C9A24B); }
+  .bar-fill.hp { background: linear-gradient(90deg, #7A2E2E, #D9534F); }
+  .bar-fill.mana { background: linear-gradient(90deg, #2E4E7A, #4F9BD9); }
+  .bar-sub { font-size: 10px; color: #8A8F9C; margin-top: 3px; }
+  .mini-stats { display:flex; gap:8px; margin-top:12px; overflow-x:auto; }
+  .mini-box { flex:1; min-width:72px; background:#1E2330; border:1px solid #2A2E3D; border-radius:9px; padding:7px 9px; text-align:center; }
+  .mini-label { font-size:9px; color:#8A8F9C; text-transform:uppercase; letter-spacing:.08em; }
+  .mini-val { font-size:16px; font-weight:700; }
+
+  /* ===== Tabs ===== */
+  .tabs { display: flex; overflow-x: auto; border-bottom: 1px solid #2A2E3D; position: sticky; top: 0; background: #14171F; z-index: 20; white-space: nowrap; }
+  .tab-btn {
+    flex: 0 0 auto; padding: 11px 14px; background: none; border: none; border-bottom: 2px solid transparent;
+    color: #8A8F9C; font-size: 12.5px;
+  }
+  .tab-btn.active { border-bottom-color: #C9A24B; color: #EDE7D9; font-weight: 700; }
+
+  .content { padding: 16px 16px 40px; }
+  .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: #8A8F9C; margin: 4px 0 10px; }
+  .section-sub { font-size: 11px; color: #6F7381; margin: -6px 0 10px; }
+  .day-head { display: flex; align-items: baseline; justify-content: space-between; margin: 4px 0 10px; }
+
+  .card { background: #1E2330; border: 1px solid #2A2E3D; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .card.done { background: #1A2624; border-color: #26382F; }
+  .card.trial { border-color: #4C3A20; background: #241E20; }
+  .card.locked { opacity: 0.5; }
+  .card.unlocked-ach { border-color: #C9A24B; background: #241E14; }
+  .card-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; }
+  .card-row.btn { background: none; border: none; padding: 0; }
+  .card-title { font-size: 15px; }
+  .card-title.done { text-decoration: line-through; color: #8A8F9C; }
+  .card-sub { font-size: 12px; color: #8A8F9C; margin-top:2px; }
+  .xp-tag { font-family: 'Courier New', monospace; font-size: 13px; font-weight: 700; color: #8A8F9C; }
+  .xp-tag.done { color: #4C8C6B; }
+  .icon { font-size: 18px; width:22px; text-align:center; flex-shrink:0; }
+
+  .checkbox {
+    width: 20px; height: 20px; border-radius: 6px; flex-shrink: 0;
+    border: 1.5px solid #4A5065; display: flex; align-items: center; justify-content: center;
+  }
+  .checkbox.done { background: #4C8C6B; border-color: #4C8C6B; }
+  .checkbox svg { display: none; }
+  .checkbox.done svg { display: block; }
+
+  .input-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; padding-left: 30px; }
+  .num-input {
+    width: 56px; background: #14171F; border: 1px solid #3A4155; border-radius: 6px;
+    color: #EDE7D9; padding: 6px 8px; font-size: 13px; font-family: inherit;
+  }
+  .unit { font-size: 12px; color: #8A8F9C; }
+  .log-btn {
+    background: #2E3446; border: 1px solid #3A4155; color: #EDE7D9; border-radius: 8px;
+    padding: 8px 12px; font-size: 13px; font-weight: 600; white-space: nowrap;
+  }
+  .log-btn.trial { background: #3A3320; color: #E8C97A; border-color: #C9A24B; }
+  .log-btn.boost { background: #1E2E42; color: #7FC0EE; border-color: #2E4E7A; }
+  .log-btn.boss-btn { background: #3A1F1F; color: #E8968C; border-color: #7A2E2E; }
+  .log-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .ml-auto { margin-left: auto; }
+
+  .progress-mini { height:6px; border-radius:3px; background:#14171F; overflow:hidden; border:1px solid #2A2E3D; margin-top:6px; }
+  .progress-mini-fill { height:100%; background:linear-gradient(90deg,#4C8C6B,#C9A24B); }
+
+  .log-entry { display: flex; justify-content: space-between; align-items: center; padding: 10px 4px; border-bottom: 1px solid #1E2330; }
+  .log-entry-label { font-size: 14px; }
+  .log-entry-time { font-size: 11px; color: #8A8F9C; font-family: 'Courier New', monospace; }
+  .log-entry-xp { font-family: 'Courier New', monospace; font-size: 14px; font-weight: 700; }
+  .empty-state { color: #8A8F9C; font-size: 14px; text-align: center; padding: 40px 0; }
+
+  .stats-grid { display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:18px; }
+  .stat-card { background:#1E2330; border:1px solid #2A2E3D; border-radius:12px; padding:12px 14px; }
+  .stat-card .v { font-size:20px; font-weight:700; color:#C9A24B; }
+  .stat-card .l { font-size:11px; color:#8A8F9C; text-transform:uppercase; letter-spacing:.06em; margin-top:2px; }
+
+  .boss-card { background: radial-gradient(circle at 30% 0%, #2A1616, #1E2330); border:1px solid #4C2A2A; border-radius:16px; padding:18px; text-align:center; margin-bottom:16px; }
+  .boss-emoji { font-size:52px; }
+  .boss-name { font-size:19px; font-weight:700; color:#E8968C; margin-top:4px; }
+  .boss-hp-track { height:16px; border-radius:8px; background:#14171F; overflow:hidden; border:1px solid #4C2A2A; margin-top:12px; }
+  .boss-hp-fill { height:100%; background: linear-gradient(90deg,#7A2E2E,#D9534F); transition: width .5s; }
+  .boss-hp-label { font-size:12px; color:#8A8F9C; margin-top:6px; }
+  .boss-timer { font-size:11px; color:#6F7381; margin-top:10px; }
+
+  .settings-btn { display:block; width:100%; text-align:left; background:#1E2330; border:1px solid #2A2E3D; color:#EDE7D9; border-radius:12px; padding:14px; margin-bottom:10px; font-size:14px; }
+  .settings-btn.danger { border-color:#5A2A2A; color:#E8968C; }
+  .settings-note { font-size:12px; color:#8A8F9C; margin: 4px 0 16px; line-height:1.5; }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #1E2330; border: 1px solid #C9A24B; color: #EDE7D9;
+    padding: 10px 18px; border-radius: 999px; font-size: 13px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5); display: flex; align-items: center; gap: 8px;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s;
+    z-index: 60; max-width: 90vw; overflow: hidden; text-overflow: ellipsis;
+  }
+  .toast.show { opacity: 1; }
+
+  /* Level up modal */
+  .lvlup-overlay {
+    position: fixed; inset: 0; background: rgba(10,12,18,0.82); z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity .3s;
+  }
+  .lvlup-overlay.show { opacity: 1; pointer-events: auto; }
+  .lvlup-card {
+    text-align: center; padding: 34px 40px; border-radius: 20px;
+    border: 2px solid #C9A24B; background: radial-gradient(circle at 50% 0%, #2A2410, #14171F);
+    box-shadow: 0 0 40px rgba(201,162,75,0.4);
+    transform: scale(0.7); transition: transform .4s cubic-bezier(.34,1.56,.64,1);
+  }
+  .lvlup-overlay.show .lvlup-card { transform: scale(1); }
+  .lvlup-sub { font-size:12px; letter-spacing:.2em; text-transform:uppercase; color:#8A8F9C; }
+  .lvlup-big { font-size: 44px; font-weight: 800; color: #E8C97A; margin: 6px 0; text-shadow: 0 0 20px rgba(232,201,122,0.6); }
+  .lvlup-title { font-size: 15px; color: #C9A24B; margin-top: 4px; }
+  .lvlup-hint { font-size: 11px; color: #6F7381; margin-top: 18px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="headrow">
+    <div class="seal"><span id="lvlNum">1</span></div>
+    <div style="flex:1; min-width:0;">
+      <div class="rank-label" id="rankLabel">Rank 1 of 100</div>
+      <div class="title-line"><span class="name-title" id="titleLabel">Novice</span></div>
+      <div class="bar-track"><div class="bar-fill xp" id="xpFill" style="width:0%"></div></div>
+      <div class="bar-sub mono" id="xpSub">0 / 200 XP</div>
+    </div>
+  </div>
+
+  <div style="margin-top:12px;">
+    <div style="display:flex; justify-content:space-between; font-size:11px; color:#D9534F;"><span>❤️ HP</span><span class="mono" id="hpText">100/100</span></div>
+    <div class="bar-track"><div class="bar-fill hp" id="hpFill" style="width:100%"></div></div>
+  </div>
+  <div style="margin-top:8px;">
+    <div style="display:flex; justify-content:space-between; font-size:11px; color:#4F9BD9;"><span>🔷 Mana</span><span class="mono" id="manaText">0/100</span></div>
+    <div class="bar-track"><div class="bar-fill mana" id="manaFill" style="width:0%"></div></div>
+  </div>
+
+  <div class="mini-stats">
+    <div class="mini-box"><div class="mini-label">🪙 Coins</div><div class="mini-val" id="coinsVal" style="color:#C9A24B;">0</div></div>
+    <div class="mini-box"><div class="mini-label">🔥 Streak</div><div class="mini-val" id="streakVal" style="color:#E8968C;">0</div></div>
+    <div class="mini-box"><div class="mini-label">🛡 Shields</div><div class="mini-val" id="shieldVal" style="color:#7FC0EE;">0</div></div>
+    <div class="mini-box"><div class="mini-label">🎯 To Jan 1 '27</div><div class="mini-val" id="countdownVal" style="color:#E8C97A;">0</div></div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="character">🏠 Character</button>
+  <button class="tab-btn" data-tab="quests">📜 Quests</button>
+  <button class="tab-btn" data-tab="boss">👹 Boss</button>
+  <button class="tab-btn" data-tab="achievements">🏆 Achievements</button>
+  <button class="tab-btn" data-tab="shop">🛒 Shop</button>
+  <button class="tab-btn" data-tab="stats">📊 Stats</button>
+  <button class="tab-btn" data-tab="settings">⚙ Settings</button>
+</div>
+
+<div class="content">
+  <div id="character-tab"></div>
+  <div id="quests-tab" style="display:none;"></div>
+  <div id="boss-tab" style="display:none;"></div>
+  <div id="achievements-tab" style="display:none;"></div>
+  <div id="shop-tab" style="display:none;"></div>
+  <div id="stats-tab" style="display:none;"></div>
+  <div id="settings-tab" style="display:none;"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="lvlup-overlay" id="lvlupOverlay">
+  <div class="lvlup-card">
+    <div class="lvlup-sub">Level Up</div>
+    <div class="lvlup-big" id="lvlupNum">2</div>
+    <div class="lvlup-title" id="lvlupTitle">Novice</div>
+    <div class="lvlup-hint">tap to continue</div>
+  </div>
+</div>
+
+
+<script>
+/* ============================= CONFIG ============================= */
+const XP_PER_LEVEL = 200;
+const MAX_LEVEL = 100;
+const STORAGE_KEY = "sadhana-ledger-v2";
+
+const TASKS = [
+  { id: "exercise", label: "Exercise / Yogasanas", sub: "30 min", xp: 20, type: "fixed", icon: "☀️" },
+  { id: "yoga90", label: "Yoga Session", sub: "90 min · logs partial time", xpFull: 60, fullMin: 90, type: "timed", icon: "🧘", manaRate: 0.5 },
+  { id: "water", label: "Water the Plants", sub: "", xp: 5, type: "fixed", icon: "💧" },
+  { id: "clean", label: "Clean Table", sub: "", xp: 10, type: "fixed", icon: "✨" },
+  { id: "changewater", label: "Change Plant Water", sub: "", xp: 5, type: "fixed", icon: "💧" },
+  { id: "study", label: "Study", sub: "per hour · logs partial time", xpPerHour: 15, type: "hours", icon: "📖", manaRate: 0.5 },
+  { id: "evening_yoga", label: "Evening Yoga", sub: "30 min", xp: 20, type: "fixed", icon: "🌙", manaRate: 0.5 },
+];
+
+const BONUS = [
+  { id: "mock", label: "Mock Test Completed", xp: 100, icon: "🎯" },
+  { id: "exam", label: "Exam Completed", xp: 200, icon: "🏅" },
+];
+
+const REP_TASKS = [
+  { id: "pushup", label: "Push-ups", icon: "💪", unit: "push-ups", pointsFn: reps => Math.floor(reps / 2), rateLabel: "1 pt per 2 push-ups" },
+  { id: "pullup", label: "Pull-ups", icon: "🏋️", unit: "pull-ups", pointsFn: reps => reps * 2, rateLabel: "2 pts per pull-up" },
+];
+
+const REWARDS = [
+  { id: "music", label: "Music Session", cost: 5, lvl: 1 },
+  { id: "walk", label: "Walk", sub: "40 min", cost: 10, lvl: 1 },
+  { id: "pinterest", label: "Scroll Pinterest", cost: 10, lvl: 1 },
+  { id: "shorts", label: "YouTube Shorts", cost: 10, lvl: 1 },
+  { id: "discord", label: "Discord Chat", type: "timed", ratePerMin: 1/3, sub: "20 pts / hour", lvl: 1 },
+  { id: "manga", label: "Manga Chapter", cost: 20, lvl: 1 },
+  { id: "hawkeye", label: "Hawkeye Time", cost: 20, lvl: 5 },
+  { id: "anime", label: "Anime Episode", cost: 30, lvl: 3 },
+  { id: "youtube", label: "YouTube (long-form)", type: "timed", ratePerMin: 0.5, sub: "30 pts / hour", lvl: 5 },
+  { id: "movie", label: "Movie / Show Episode", cost: 80, lvl: 10 },
+];
+
+const BOOSTS = [
+  { id: "xp_potion", label: "XP Potion", desc: "Instantly gain +15 bonus XP", manaCost: 20, effect: "xp15" },
+  { id: "coin_charm", label: "Coin Charm", desc: "Instantly gain +25 bonus Coins", manaCost: 15, effect: "coin25" },
+  { id: "hp_potion", label: "HP Potion", desc: "Restore 30 HP", manaCost: 15, effect: "hp30" },
+  { id: "streak_shield", label: "Streak Shield", desc: "Auto-protects HP & streak on one future missed day", manaCost: 30, effect: "shield" },
+];
+
+const TITLES = [[1,"Novice"],[10,"Disciple"],[20,"Practitioner"],[30,"Adept"],[40,"Ascetic"],[50,"Sage"],[60,"Vanguard"],[70,"Champion"],[80,"Master"],[90,"Grandmaster"],[100,"Ascended"]];
+
+const WEEKLY_QUESTS = [
+  { id: "wq_study", label: "Study Marathon", desc: "Study 8 hours this week", target: 8, unit: "hr", trackTask: "study", trackBy: "amount", reward: { xp: 80, coins: 80, mana: 20 } },
+  { id: "wq_yoga", label: "Flexible Mind", desc: "Complete Yoga sessions 5 times", target: 5, unit: "sessions", trackTask: "yoga90", trackBy: "count", reward: { xp: 60, coins: 60, mana: 30 } },
+  { id: "wq_plants", label: "Green Thumb", desc: "Water the plants 5 times", target: 5, unit: "times", trackTask: "water", trackBy: "count", reward: { xp: 30, coins: 30, mana: 0 } },
+  { id: "wq_perfect", label: "Flawless Week", desc: "Complete every daily quest, every day", target: 7, unit: "days", trackTask: "__perfectday__", trackBy: "count", reward: { xp: 150, coins: 150, mana: 50 } },
+];
+
+const BOSS_NAMES = ["The Procrastination Wraith","The Doubt Hydra","The Inertia Golem","The Excuse Demon","The Comfort Zone Dragon","The Snooze Specter","The Discipline Devourer","The Distraction Djinn"];
+const TARGET_DATE = new Date(2027, 0, 1, 0, 0, 0, 0);
+
+const ACHIEVEMENTS = [
+  { id: "first_steps", label: "First Steps", desc: "Complete your first quest", check: s => s.log.some(e => e.kind === "task"), reward: { coins: 10 } },
+  { id: "streak_7", label: "Week Warrior", desc: "Reach a 7-day streak", check: s => (s.bestStreak||0) >= 7, reward: { coins: 50, mana: 10 } },
+  { id: "streak_30", label: "Iron Habit", desc: "Reach a 30-day streak", check: s => (s.bestStreak||0) >= 30, reward: { coins: 150, mana: 30 } },
+  { id: "streak_100", label: "Unshakeable", desc: "Reach a 100-day streak", check: s => (s.bestStreak||0) >= 100, reward: { coins: 400, mana: 100 } },
+  { id: "lvl_10", label: "Disciple", desc: "Reach Level 10", check: s => levelFromXP(s.totalXP).lvl >= 10, reward: { coins: 50 } },
+  { id: "lvl_25", label: "Adept", desc: "Reach Level 25", check: s => levelFromXP(s.totalXP).lvl >= 25, reward: { coins: 100 } },
+  { id: "lvl_50", label: "Sage", desc: "Reach Level 50", check: s => levelFromXP(s.totalXP).lvl >= 50, reward: { coins: 200 } },
+  { id: "lvl_75", label: "Master", desc: "Reach Level 75", check: s => levelFromXP(s.totalXP).lvl >= 75, reward: { coins: 300 } },
+  { id: "lvl_100", label: "Ascended", desc: "Reach Level 100", check: s => levelFromXP(s.totalXP).lvl >= 100, reward: { coins: 500 } },
+  { id: "boss_1", label: "Boss Slayer", desc: "Defeat your first weekly boss", check: s => (s.bossKillCount||0) >= 1, reward: { coins: 60 } },
+  { id: "boss_10", label: "Boss Hunter", desc: "Defeat 10 weekly bosses", check: s => (s.bossKillCount||0) >= 10, reward: { coins: 300 } },
+  { id: "scholar", label: "Scholar", desc: "Log 100 hours of study", check: s => (s.totalStudyHours||0) >= 100, reward: { coins: 200 } },
+  { id: "yogi", label: "Yogi", desc: "Complete 100 yoga sessions", check: s => (s.totalYogaSessions||0) >= 100, reward: { coins: 150 } },
+  { id: "exam_ace", label: "Exam Ace", desc: "Log your first exam", check: s => s.log.some(e => e.label === "Exam Completed"), reward: { coins: 80 } },
+  { id: "big_spender", label: "Big Spender", desc: "Spend 500 coins total", check: s => (s.totalCoinsSpent||0) >= 500, reward: { xp: 20 } },
+  { id: "iron_will", label: "Iron Will", desc: "Recover from Fainting", check: s => (s.faintCount||0) >= 1, reward: { coins: 30 } },
+];
+
+/* ============================= STATE ============================= */
+let state = {
+  totalXP: 0, coins: 0, mana: 0, maxMana: 100, hp: 100, maxHP: 100,
+  bestStreak: 0, shields: 0, lastCheckedDate: null,
+  completions: {}, log: [], achievementsUnlocked: {}, weeklyClaims: {},
+  totalStudyHours: 0, totalYogaSessions: 0, totalCoinsSpent: 0,
+  bossKillCount: 0, faintCount: 0,
+};
+let draftInput = {};
+let activeTab = "character";
+
+/* ============================= HELPERS ============================= */
+function pad(n){ return String(n).padStart(2,"0"); }
+function todayKey(d) {
+  d = d || new Date();
+  return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate());
+}
+function parseKey(k) { return new Date(k + "T00:00:00"); }
+function todayLabel() { return new Date().toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" }); }
+function fmtTime(ts) { return new Date(ts).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
+
+function levelFromXP(totalXP) {
+  const lvl = Math.min(MAX_LEVEL, Math.floor(totalXP / XP_PER_LEVEL) + 1);
+  const into = totalXP - (lvl - 1) * XP_PER_LEVEL;
+  const need = lvl >= MAX_LEVEL ? 0 : XP_PER_LEVEL;
+  return { lvl, into, need };
+}
+function getTitle(lvl) {
+  let t = "Novice";
+  for (const [l, name] of TITLES) if (lvl >= l) t = name;
+  return t;
+}
+
+function getWeekDates(d) {
+  d = d || new Date();
+  const dayIdx = (d.getDay() + 6) % 7; // Monday = 0
+  const monday = new Date(d); monday.setDate(d.getDate() - dayIdx); monday.setHours(0,0,0,0);
+  const dates = [];
+  for (let i = 0; i < 7; i++) { const dt = new Date(monday); dt.setDate(monday.getDate() + i); dates.push(dt); }
+  return dates;
+}
+function weekKey(d) {
+  d = d || new Date();
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  return date.getUTCFullYear() + "-W" + pad(weekNo);
+}
+function nextMondayMs() {
+  const d = new Date();
+  const dayIdx = (d.getDay() + 6) % 7;
+  const daysUntil = 7 - dayIdx;
+  const next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + daysUntil, 0, 0, 0, 0);
+  return next.getTime();
+}
+function fmtTimeLeft(ms) {
+  if (ms < 0) ms = 0;
+  const days = Math.floor(ms / 86400000);
+  const hrs = Math.floor((ms % 86400000) / 3600000);
+  return days + "d " + hrs + "h remaining";
+}
+function daysUntilTarget() {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return Math.round((TARGET_DATE - now) / 86400000);
+}
+
+function computeStreak() {
+  let streak = 0;
+  const today = new Date();
+  const tKey = todayKey(today);
+  if (state.completions[tKey] && Object.keys(state.completions[tKey]).length > 0) streak = 1;
+  const cursor = new Date(today);
+  cursor.setDate(cursor.getDate() - 1);
+  while (true) {
+    const k = todayKey(cursor);
+    if (state.completions[k] && Object.keys(state.completions[k]).length > 0) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    } else break;
+  }
+  return streak;
+}
+
+function weeklyProgress(quest) {
+  const dates = getWeekDates();
+  let val = 0;
+  dates.forEach(dt => {
+    const k = todayKey(dt);
+    const day = state.completions[k];
+    if (!day) return;
+    if (quest.trackTask === "__perfectday__") {
+      if (Object.keys(day).length >= TASKS.length) val += 1;
+    } else if (day[quest.trackTask]) {
+      val += quest.trackBy === "amount" ? (day[quest.trackTask].amount || 0) : 1;
+    }
+  });
+  return val;
+}
+
+function weeklyDamage() {
+  const dates = getWeekDates();
+  let dmg = 0;
+  dates.forEach(dt => {
+    const k = todayKey(dt);
+    const day = state.completions[k];
+    if (day) Object.values(day).forEach(c => dmg += c.xp);
+  });
+  const start = dates[0].getTime(), end = dates[6].getTime() + 86400000;
+  state.log.forEach(e => { if (e.kind === "bonus" && e.ts >= start && e.ts < end) dmg += e.xp; });
+  return dmg;
+}
+
+function bossMaxHP() {
+  const lvl = levelFromXP(state.totalXP).lvl;
+  return Math.min(800, 300 + (lvl - 1) * 5);
+}
+function bossReward() {
+  const lvl = levelFromXP(state.totalXP).lvl;
+  return { xp: 60 + lvl, coins: 80 + lvl, mana: 30 };
+}
+function currentBossName() {
+  const wk = weekKey();
+  const n = parseInt(wk.split("-W")[1], 10) || 0;
+  return BOSS_NAMES[n % BOSS_NAMES.length];
+}
+
+/* ============================= PERSISTENCE ============================= */
+function save() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {} }
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) state = Object.assign({}, state, JSON.parse(raw));
+  } catch (e) {}
+}
+
+/* ============================= ROLLOVER (HP / streak decay) ============================= */
+function processRollover() {
+  const todayK = todayKey();
+  if (!state.lastCheckedDate) { state.lastCheckedDate = todayK; save(); return; }
+  if (state.lastCheckedDate === todayK) return;
+  let cursor = parseKey(state.lastCheckedDate);
+  cursor.setDate(cursor.getDate() + 1);
+  const todayDate = parseKey(todayK);
+  while (cursor < todayDate) {
+    const k = todayKey(cursor);
+    const had = state.completions[k] && Object.keys(state.completions[k]).length > 0;
+    if (!had) {
+      if (state.shields > 0) {
+        state.shields -= 1;
+        state.log.unshift({ id: Date.now() + Math.random(), ts: Date.now(), kind: "system", label: "🛡 Shield absorbed a missed day (" + k + ")", xp: 0 });
+      } else {
+        state.hp = Math.max(0, state.hp - 20);
+        if (state.hp === 0) {
+          state.coins = Math.floor(state.coins * 0.5);
+          state.hp = 50;
+          state.faintCount = (state.faintCount || 0) + 1;
+          state.log.unshift({ id: Date.now() + Math.random(), ts: Date.now(), kind: "system", label: "💀 Fainted from neglect — lost half your coins", xp: 0 });
+        }
+      }
+    } else {
+      state.hp = Math.min(state.maxHP, state.hp + 10);
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  state.lastCheckedDate = todayK;
+  save();
+}
+
+/* ============================= TOAST / LEVEL UP ============================= */
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
+}
+function showLevelUp(newLevel) {
+  document.getElementById("lvlupNum").textContent = newLevel;
+  document.getElementById("lvlupTitle").textContent = getTitle(newLevel);
+  const overlay = document.getElementById("lvlupOverlay");
+  overlay.classList.add("show");
+  const close = () => overlay.classList.remove("show");
+  overlay.onclick = close;
+  setTimeout(close, 3500);
+}
+
+/* ============================= ACHIEVEMENTS ============================= */
+function checkAchievements() {
+  let any = false;
+  ACHIEVEMENTS.forEach(a => {
+    if (!state.achievementsUnlocked[a.id] && a.check(state)) {
+      state.achievementsUnlocked[a.id] = Date.now();
+      state.coins += a.reward.coins || 0;
+      state.totalXP += a.reward.xp || 0;
+      state.mana = Math.min(state.maxMana, state.mana + (a.reward.mana || 0));
+      state.log.unshift({ id: Date.now() + Math.random(), ts: Date.now(), kind: "achievement", label: "🏆 " + a.label, xp: a.reward.xp || 0 });
+      any = true;
+      toast("🏆 Achievement: " + a.label);
+    }
+  });
+  if (any) save();
+}
+
+/* ============================= ACTIONS ============================= */
+function completeTask(task, xp, label, amount) {
+  xp = Math.round(xp);
+  if (xp <= 0) return;
+  const key = todayKey();
+  if (state.completions[key] && state.completions[key][task.id]) return;
+  const prevLevel = levelFromXP(state.totalXP).lvl;
+  const entryId = Date.now() + Math.random();
+  const manaGain = task.manaRate ? Math.round(xp * task.manaRate) : 0;
+
+  state.totalXP += xp;
+  state.coins += xp;
+  if (manaGain) state.mana = Math.min(state.maxMana, state.mana + manaGain);
+
+  let studyDelta = 0, yogaDelta = 0;
+  if (task.id === "study") { studyDelta = amount; state.totalStudyHours = (state.totalStudyHours || 0) + amount; }
+  if (task.id === "yoga90") { yogaDelta = 1; state.totalYogaSessions = (state.totalYogaSessions || 0) + 1; }
+
+  state.log.unshift({ id: entryId, ts: Date.now(), kind: "task", label, xp });
+  state.log = state.log.slice(0, 500);
+  if (!state.completions[key]) state.completions[key] = {};
+  state.completions[key][task.id] = { xp, entryId, amount, manaGain, studyDelta, yogaDelta };
+
+  const newLevel = levelFromXP(state.totalXP).lvl;
+  save();
+  toast("+" + xp + " XP · " + label);
+  checkAchievements();
+  if (newLevel > prevLevel) showLevelUp(newLevel);
+  render();
+}
+
+function undoTask(task) {
+  const key = todayKey();
+  const comp = state.completions[key] && state.completions[key][task.id];
+  if (!comp) return;
+  state.totalXP -= comp.xp;
+  state.coins -= comp.xp;
+  if (comp.manaGain) state.mana = Math.max(0, state.mana - comp.manaGain);
+  if (comp.studyDelta) state.totalStudyHours = Math.max(0, (state.totalStudyHours || 0) - comp.studyDelta);
+  if (comp.yogaDelta) state.totalYogaSessions = Math.max(0, (state.totalYogaSessions || 0) - comp.yogaDelta);
+  state.log = state.log.filter(e => e.id !== comp.entryId);
+  delete state.completions[key][task.id];
+  save();
+  render();
+}
+
+function logBonus(t) {
+  const prevLevel = levelFromXP(state.totalXP).lvl;
+  state.totalXP += t.xp;
+  state.coins += t.xp;
+  state.log.unshift({ id: Date.now() + Math.random(), ts: Date.now(), kind: "bonus", label: t.label, xp: t.xp });
+  state.log = state.log.slice(0, 500);
+  const newLevel = levelFromXP(state.totalXP).lvl;
+  save();
+  toast("+" + t.xp + " XP · " + t.label);
+  checkAchievements();
+  if (newLevel > prevLevel) showLevelUp(newLevel);
+  render();
+}
+
+function completeReps(task, reps) {
+  reps = Math.max(0, Math.round(reps));
+  if (reps <= 0) return;
+  const points = task.pointsFn(reps);
+  if (points <= 0) { toast("Not enough reps to earn a point"); return; }
+  state.coins += points;
+  state.log.unshift({ id: Date.now() + Math.random(), ts: Date.now(), kind: "reps", label: task.label + " (" + reps + " " + task.unit + ")", xp: points });
+  state.log = state.log.slice(0, 500);
+  save();
+  toast("+" + points + " 🪙 · " + task.label);
+  checkAchievements();
+  render();
+}
+
+function redeem(cost, label) {
+  cost = Math.round(cost);
+  if (cost <= 0) return;
+  if (state.coins < cost) { toast("Not enough coins"); return; }
+  state.coins -= cost;
+  state.totalCoinsSpent = (state.totalCoinsSpent || 0) + cost;
+  state.log.unshift({ id: Date.now() + Math.random(), ts: Date.now(), kind: "redeem", label, xp: -cost });
+  state.log = state.log.slice(0, 500);
+  save();
+  toast("Redeemed: " + label);
+  checkAchievements();
+  render();
+}
+
+function buyBoost(boost) {
+  if (state.mana < boost.manaCost) { toast("Not enough mana"); return; }
+  state.mana -= boost.manaCost;
+  const prevLevel = levelFromXP(state.totalXP).lvl;
+  if (boost.effect === "xp15") state.totalXP += 15;
+  else if (boost.effect === "coin25") state.coins += 25;
+  else if (boost.effect === "hp30") state.hp = Math.min(state.maxHP, state.hp + 30);
+  else if (boost.effect === "shield") state.shields = (state.shields || 0) + 1;
+  const newLevel = levelFromXP(state.totalXP).lvl;
+  state.log.unshift({ id: Date.now() + Math.random(), ts: Date.now(), kind: "boost", label: "Used " + boost.label, xp: 0 });
+  save();
+  toast("Used: " + boost.label);
+  checkAchievements();
+  if (newLevel > prevLevel) showLevelUp(newLevel);
+  render();
+}
+
+function claimWeeklyQuest(q) {
+  const wk = weekKey();
+  const progress = weeklyProgress(q);
+  if (progress < q.target) return;
+  state.weeklyClaims[wk] = state.weeklyClaims[wk] || {};
+  if (state.weeklyClaims[wk][q.id]) return;
+  state.weeklyClaims[wk][q.id] = true;
+  const prevLevel = levelFromXP(state.totalXP).lvl;
+  state.totalXP += q.reward.xp || 0;
+  state.coins += q.reward.coins || 0;
+  state.mana = Math.min(state.maxMana, state.mana + (q.reward.mana || 0));
+  const newLevel = levelFromXP(state.totalXP).lvl;
+  state.log.unshift({ id: Date.now() + Math.random(), ts: Date.now(), kind: "weekly", label: "📅 Weekly Quest: " + q.label, xp: q.reward.xp || 0 });
+  save();
+  toast("Weekly Quest complete: " + q.label);
+  checkAchievements();
+  if (newLevel > prevLevel) showLevelUp(newLevel);
+  render();
+}
+
+function claimBoss() {
+  const wk = weekKey();
+  const dmg = weeklyDamage();
+  const max = bossMaxHP();
+  if (dmg < max) return;
+  state.weeklyClaims[wk] = state.weeklyClaims[wk] || {};
+  if (state.weeklyClaims[wk].boss) return;
+  state.weeklyClaims[wk].boss = true;
+  state.bossKillCount = (state.bossKillCount || 0) + 1;
+  const reward = bossReward();
+  const prevLevel = levelFromXP(state.totalXP).lvl;
+  state.totalXP += reward.xp;
+  state.coins += reward.coins;
+  state.mana = Math.min(state.maxMana, state.mana + reward.mana);
+  const newLevel = levelFromXP(state.totalXP).lvl;
+  state.log.unshift({ id: Date.now() + Math.random(), ts: Date.now(), kind: "boss", label: "👹 Defeated " + currentBossName() + "!", xp: reward.xp });
+  save();
+  toast("Boss defeated! 👹💥");
+  checkAchievements();
+  if (newLevel > prevLevel) showLevelUp(newLevel);
+  render();
+}
+
+/* ============================= RENDER ============================= */
+function checkSvg() {
+  return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#14171F" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>';
+}
+
+function renderTopbar(streak) {
+  const { lvl, into, need } = levelFromXP(state.totalXP);
+  const pct = need ? Math.round((into / need) * 100) : 100;
+  document.getElementById("lvlNum").textContent = lvl;
+  document.getElementById("rankLabel").textContent = lvl >= MAX_LEVEL ? "Ascended · Rank 100" : ("Rank " + lvl + " of " + MAX_LEVEL);
+  document.getElementById("titleLabel").textContent = getTitle(lvl);
+  document.getElementById("xpFill").style.width = pct + "%";
+  document.getElementById("xpSub").textContent = lvl >= MAX_LEVEL ? (state.totalXP + " XP total") : (into + " / " + need + " XP to Rank " + (lvl + 1));
+  document.getElementById("hpText").textContent = state.hp + "/" + state.maxHP;
+  document.getElementById("hpFill").style.width = Math.round((state.hp / state.maxHP) * 100) + "%";
+  document.getElementById("manaText").textContent = state.mana + "/" + state.maxMana;
+  document.getElementById("manaFill").style.width = Math.round((state.mana / state.maxMana) * 100) + "%";
+  document.getElementById("coinsVal").textContent = state.coins;
+  document.getElementById("streakVal").textContent = streak + "🔥";
+  document.getElementById("shieldVal").textContent = state.shields || 0;
+  document.getElementById("countdownVal").textContent = daysUntilTarget();
+}
+
+function renderCharacter(streak) {
+  const { lvl } = levelFromXP(state.totalXP);
+  const unlockedCount = Object.keys(state.achievementsUnlocked).length;
+  let html = '<div class="section-label">Character Sheet</div>';
+  html += '<div class="stats-grid">' +
+    '<div class="stat-card"><div class="v">' + getTitle(lvl) + '</div><div class="l">Current Title</div></div>' +
+    '<div class="stat-card"><div class="v">' + streak + ' 🔥</div><div class="l">Current Streak</div></div>' +
+    '<div class="stat-card"><div class="v">' + (state.bestStreak||0) + '</div><div class="l">Best Streak Ever</div></div>' +
+    '<div class="stat-card"><div class="v">' + unlockedCount + '/' + ACHIEVEMENTS.length + '</div><div class="l">Achievements</div></div>' +
+    '<div class="stat-card"><div class="v">' + (state.bossKillCount||0) + '</div><div class="l">Bosses Defeated</div></div>' +
+    '<div class="stat-card"><div class="v">' + state.totalXP + '</div><div class="l">Lifetime XP</div></div>' +
+  '</div>';
+
+  html += '<div class="section-label">Next Title</div>';
+  const next = TITLES.find(t => t[0] > lvl);
+  if (next) {
+    html += '<div class="card"><div class="card-row"><div style="flex:1;"><div class="card-title">' + next[1] + '</div><div class="card-sub">Unlocks at Rank ' + next[0] + ' (' + (next[0]-lvl) + ' ranks to go)</div></div></div></div>';
+  } else {
+    html += '<div class="card"><div class="card-row"><div style="flex:1;"><div class="card-title">You hold the highest title.</div></div></div></div>';
+  }
+
+  html += '<div class="section-label">Quick Glance</div>';
+  html += '<div class="card"><div class="card-sub" style="font-size:13px; line-height:1.7;">' +
+    '❤️ HP recovers +10 on any active day, and drops 20 on a fully missed day. At 0 HP you faint and lose half your coins.<br>' +
+    '🔷 Mana comes from Yoga and Study — spend it in the Shop on potions and a Streak Shield.<br>' +
+    '🛡 A Streak Shield automatically absorbs one missed day before HP takes damage.' +
+  '</div></div>';
+
+  document.getElementById("character-tab").innerHTML = html;
+}
+
+function renderQuests() {
+  const key = todayKey();
+  const todays = state.completions[key] || {};
+  const doneCount = TASKS.filter(t => todays[t.id]).length;
+  let html = '<div class="day-head"><div class="section-label">' + todayLabel() + '</div><div class="mono" style="font-size:11px;color:#8A8F9C;">' + doneCount + '/' + TASKS.length + ' done</div></div>';
+
+  TASKS.forEach(t => {
+    const comp = todays[t.id];
+    const done = !!comp;
+
+    if (t.type === "fixed") {
+      html += '<div class="card ' + (done?'done':'') + '">' +
+        '<button class="card-row btn" data-action="toggle-fixed" data-id="' + t.id + '">' +
+          '<span class="checkbox ' + (done?'done':'') + '">' + checkSvg() + '</span>' +
+          '<span class="icon">' + t.icon + '</span>' +
+          '<div style="flex:1;">' +
+            '<div class="card-title ' + (done?'done':'') + '">' + t.label + '</div>' +
+            (t.sub ? '<div class="card-sub">' + t.sub + '</div>' : '') +
+          '</div>' +
+          '<div class="xp-tag ' + (done?'done':'') + '">+' + t.xp + '</div>' +
+        '</button></div>';
+    } else if (t.type === "timed") {
+      const draft = draftInput[t.id] != null ? draftInput[t.id] : t.fullMin;
+      const xp = (draft / t.fullMin) * t.xpFull;
+      html += '<div class="card ' + (done?'done':'') + '">' +
+        '<div class="card-row">' +
+          '<span class="checkbox ' + (done?'done':'') + '" data-action="' + (done?'undo':'') + '" data-id="' + t.id + '">' + checkSvg() + '</span>' +
+          '<span class="icon">' + t.icon + '</span>' +
+          '<div style="flex:1;">' +
+            '<div class="card-title ' + (done?'done':'') + '">' + t.label + '</div>' +
+            '<div class="card-sub">' + (done ? ("Logged " + comp.amount + " min · +" + comp.manaGain + " 🔷") : t.sub) + '</div>' +
+          '</div>' +
+        '</div>' +
+        (!done ? (
+          '<div class="input-row">' +
+            '<span class="unit">⏱</span>' +
+            '<input class="num-input" type="number" min="0" max="' + t.fullMin + '" value="' + draft + '" data-action="draft" data-id="' + t.id + '" />' +
+            '<span class="unit">min</span>' +
+            '<button class="log-btn ml-auto" data-action="log-timed" data-id="' + t.id + '">Log +' + Math.round(xp) + '</button>' +
+          '</div>'
+        ) : '') +
+      '</div>';
+    } else {
+      const hrs = draftInput[t.id] != null ? draftInput[t.id] : 1;
+      const xp = hrs * t.xpPerHour;
+      html += '<div class="card ' + (done?'done':'') + '">' +
+        '<div class="card-row">' +
+          '<span class="checkbox ' + (done?'done':'') + '" data-action="' + (done?'undo':'') + '" data-id="' + t.id + '">' + checkSvg() + '</span>' +
+          '<span class="icon">' + t.icon + '</span>' +
+          '<div style="flex:1;">' +
+            '<div class="card-title ' + (done?'done':'') + '">' + t.label + '</div>' +
+            '<div class="card-sub">' + (done ? ("Logged " + comp.amount + " hr · +" + comp.manaGain + " 🔷") : t.sub) + '</div>' +
+          '</div>' +
+        '</div>' +
+        (!done ? (
+          '<div class="input-row">' +
+            '<span class="unit">⏱</span>' +
+            '<input class="num-input" type="number" min="0" step="0.25" value="' + hrs + '" data-action="draft" data-id="' + t.id + '" />' +
+            '<span class="unit">hr</span>' +
+            '<button class="log-btn ml-auto" data-action="log-hours" data-id="' + t.id + '">Log +' + Math.round(xp) + '</button>' +
+          '</div>'
+        ) : '') +
+      '</div>';
+    }
+  });
+
+  html += '<div class="section-label" style="margin-top:20px;">📅 Weekly Quests</div>';
+  html += '<div class="section-sub">Resets every Monday · ' + fmtTimeLeft(nextMondayMs() - Date.now()) + '</div>';
+  const wk = weekKey();
+  WEEKLY_QUESTS.forEach(q => {
+    const progress = Math.min(q.target, weeklyProgress(q));
+    const claimed = state.weeklyClaims[wk] && state.weeklyClaims[wk][q.id];
+    const ready = progress >= q.target;
+    const pct = Math.round((progress / q.target) * 100);
+    html += '<div class="card">' +
+      '<div class="card-row"><div style="flex:1;">' +
+        '<div class="card-title">' + q.label + '</div>' +
+        '<div class="card-sub">' + q.desc + ' · ' + progress + '/' + q.target + ' ' + q.unit + '</div>' +
+      '</div></div>' +
+      '<div class="progress-mini"><div class="progress-mini-fill" style="width:' + pct + '%;"></div></div>' +
+      '<div class="input-row" style="padding-left:0; justify-content:space-between;">' +
+        '<span class="card-sub">Reward: +' + q.reward.xp + ' XP · +' + q.reward.coins + ' 🪙' + (q.reward.mana ? ' · +' + q.reward.mana + ' 🔷' : '') + '</span>' +
+        (claimed
+          ? '<span class="card-sub" style="color:#4C8C6B;">Claimed ✓</span>'
+          : '<button class="log-btn" data-action="claim-weekly" data-id="' + q.id + '" ' + (ready?'':'disabled') + '>' + (ready ? 'Claim' : 'Locked') + '</button>') +
+      '</div>' +
+    '</div>';
+  });
+
+  html += '<div class="section-label" style="margin-top:20px;">💪 Reps → Coins</div>';
+  html += '<div class="section-sub">Coins only, no XP — log as many sets as you like.</div>';
+  REP_TASKS.forEach(t => {
+    const reps = draftInput["rep_" + t.id] != null ? draftInput["rep_" + t.id] : 20;
+    const points = t.pointsFn(reps);
+    html += '<div class="card">' +
+      '<div class="card-row">' +
+        '<span class="icon">' + t.icon + '</span>' +
+        '<div style="flex:1;"><div class="card-title">' + t.label + '</div><div class="card-sub">' + t.rateLabel + '</div></div>' +
+      '</div>' +
+      '<div class="input-row" style="padding-left:30px;">' +
+        '<input class="num-input" type="number" min="0" step="1" value="' + reps + '" data-action="rep-draft" data-id="' + t.id + '" />' +
+        '<span class="unit">' + t.unit + '</span>' +
+        '<button class="log-btn ml-auto" data-action="log-reps" data-id="' + t.id + '">Log +' + points + ' 🪙</button>' +
+      '</div>' +
+    '</div>';
+  });
+
+  html += '<div class="section-label" style="margin-top:20px;">Trials</div>';
+  html += '<div class="section-sub">Not daily — log each time you sit one.</div>';
+  BONUS.forEach(t => {
+    html += '<div class="card trial"><div class="card-row">' +
+      '<span class="icon">' + t.icon + '</span>' +
+      '<div style="flex:1;"><div class="card-title">' + t.label + '</div></div>' +
+      '<button class="log-btn trial" data-action="log-bonus" data-id="' + t.id + '">+' + t.xp + '</button>' +
+    '</div></div>';
+  });
+
+  document.getElementById("quests-tab").innerHTML = html;
+}
+
+function renderBoss() {
+  const dmg = weeklyDamage();
+  const max = bossMaxHP();
+  const remaining = Math.max(0, max - dmg);
+  const pct = Math.max(0, Math.min(100, Math.round((remaining / max) * 100)));
+  const wk = weekKey();
+  const claimed = state.weeklyClaims[wk] && state.weeklyClaims[wk].boss;
+  const ready = dmg >= max;
+  const reward = bossReward();
+
+  let html = '<div class="boss-card">' +
+    '<div class="boss-emoji">👹</div>' +
+    '<div class="boss-name">' + currentBossName() + '</div>' +
+    '<div class="boss-hp-track"><div class="boss-hp-fill" style="width:' + pct + '%;"></div></div>' +
+    '<div class="boss-hp-label">' + remaining + ' / ' + max + ' HP remaining</div>' +
+    '<div class="boss-timer">⏳ ' + fmtTimeLeft(nextMondayMs() - Date.now()) + '</div>' +
+  '</div>';
+
+  html += '<div class="card">' +
+    '<div class="card-sub" style="margin-bottom:10px;">Every quest you complete this week deals damage equal to its XP. Bring the boss to 0 HP before reset to claim victory.</div>' +
+    '<div class="card-row" style="justify-content:space-between;">' +
+      '<span class="card-sub">Reward: +' + reward.xp + ' XP · +' + reward.coins + ' 🪙 · +' + reward.mana + ' 🔷</span>' +
+      (claimed
+        ? '<span class="card-sub" style="color:#4C8C6B;">Defeated ✓</span>'
+        : '<button class="log-btn boss-btn" data-action="claim-boss" ' + (ready?'':'disabled') + '>' + (ready ? 'Claim Victory' : 'Not Yet') + '</button>') +
+    '</div>' +
+  '</div>';
+
+  html += '<div class="section-label" style="margin-top:16px;">Battle Record</div>';
+  html += '<div class="stats-grid"><div class="stat-card"><div class="v">' + (state.bossKillCount||0) + '</div><div class="l">Bosses Defeated</div></div>' +
+    '<div class="stat-card"><div class="v">' + max + '</div><div class="l">Current Boss Max HP</div></div></div>';
+
+  document.getElementById("boss-tab").innerHTML = html;
+}
+
+function renderAchievements() {
+  let html = '<div class="section-label">Achievements — ' + Object.keys(state.achievementsUnlocked).length + '/' + ACHIEVEMENTS.length + ' unlocked</div>';
+  ACHIEVEMENTS.forEach(a => {
+    const unlocked = !!state.achievementsUnlocked[a.id];
+    html += '<div class="card ' + (unlocked ? 'unlocked-ach' : 'locked') + '">' +
+      '<div class="card-row">' +
+        '<span class="icon">' + (unlocked ? '🏆' : '🔒') + '</span>' +
+        '<div style="flex:1;">' +
+          '<div class="card-title">' + a.label + '</div>' +
+          '<div class="card-sub">' + a.desc + '</div>' +
+        '</div>' +
+        (unlocked ? '<span class="card-sub" style="color:#C9A24B;">✓</span>' : '') +
+      '</div>' +
+    '</div>';
+  });
+  document.getElementById("achievements-tab").innerHTML = html;
+}
+
+function renderShop() {
+  const { lvl } = levelFromXP(state.totalXP);
+  let html = '<div class="section-label">🪙 Spend Coins</div>';
+  const sorted = [...REWARDS].sort((a,b) => a.lvl - b.lvl || (a.cost||0) - (b.cost||0));
+  sorted.forEach(r => {
+    const locked = lvl < r.lvl;
+    if (r.type === "timed") {
+      const mins = draftInput["r_"+r.id] != null ? draftInput["r_"+r.id] : 30;
+      const cost = Math.round(mins * r.ratePerMin);
+      const afford = state.coins >= cost;
+      html += '<div class="card ' + (locked?'locked':'') + '">' +
+        '<div class="card-row">' + (locked?'🔒':'📜') +
+          '<div style="flex:1;"><div class="card-title">' + r.label + '</div><div class="card-sub">' + (locked ? ('Unlocks at Rank ' + r.lvl) : r.sub) + '</div></div>' +
+        '</div>' +
+        (!locked ? (
+          '<div class="input-row"><span class="unit">⏱</span>' +
+            '<input class="num-input" type="number" min="5" step="5" value="' + mins + '" data-action="reward-draft" data-id="' + r.id + '" />' +
+            '<span class="unit">min</span>' +
+            '<button class="log-btn ml-auto" data-action="redeem-timed" data-id="' + r.id + '" ' + (afford?'':'disabled') + '>' + cost + ' pts</button>' +
+          '</div>'
+        ) : '') +
+      '</div>';
+    } else {
+      const afford = state.coins >= r.cost;
+      html += '<div class="card ' + (locked?'locked':'') + '"><div class="card-row">' + (locked?'🔒':'📜') +
+        '<div style="flex:1;"><div class="card-title">' + r.label + '</div><div class="card-sub">' + (locked ? ('Unlocks at Rank ' + r.lvl) : (r.sub || (r.cost + ' pts'))) + '</div></div>' +
+        '<button class="log-btn" data-action="redeem-fixed" data-id="' + r.id + '" ' + ((locked||!afford)?'disabled':'') + '>' + r.cost + ' pts</button>' +
+      '</div></div>';
+    }
+  });
+
+  html += '<div class="section-label" style="margin-top:20px;">🔷 Spend Mana — Boosts</div>';
+  BOOSTS.forEach(b => {
+    const afford = state.mana >= b.manaCost;
+    html += '<div class="card"><div class="card-row">' +
+      '<div style="flex:1;"><div class="card-title">' + b.label + '</div><div class="card-sub">' + b.desc + '</div></div>' +
+      '<button class="log-btn boost" data-action="buy-boost" data-id="' + b.id + '" ' + (afford?'':'disabled') + '>' + b.manaCost + ' 🔷</button>' +
+    '</div></div>';
+  });
+
+  document.getElementById("shop-tab").innerHTML = html;
+}
+
+function renderStats(streak) {
+  let html = '<div class="section-label">Summary</div>';
+  html += '<div class="stats-grid">' +
+    '<div class="stat-card"><div class="v">' + (state.bestStreak||0) + '</div><div class="l">Best Streak</div></div>' +
+    '<div class="stat-card"><div class="v">' + streak + '</div><div class="l">Current Streak</div></div>' +
+    '<div class="stat-card"><div class="v">' + Math.round(state.totalStudyHours||0) + 'h</div><div class="l">Study Logged</div></div>' +
+    '<div class="stat-card"><div class="v">' + (state.totalYogaSessions||0) + '</div><div class="l">Yoga Sessions</div></div>' +
+    '<div class="stat-card"><div class="v">' + (state.bossKillCount||0) + '</div><div class="l">Bosses Defeated</div></div>' +
+    '<div class="stat-card"><div class="v">' + Object.keys(state.achievementsUnlocked).length + '/' + ACHIEVEMENTS.length + '</div><div class="l">Achievements</div></div>' +
+    '<div class="stat-card"><div class="v">' + state.totalCoinsSpent + '</div><div class="l">Coins Spent</div></div>' +
+    '<div class="stat-card"><div class="v">' + (state.faintCount||0) + '</div><div class="l">Times Fainted</div></div>' +
+  '</div>';
+
+  html += '<div class="section-label">Timestamped History</div>';
+  if (state.log.length === 0) {
+    html += '<div class="empty-state">Nothing logged yet. Begin your practice.</div>';
+  } else {
+    state.log.forEach(e => {
+      html += '<div class="log-entry">' +
+        '<div><div class="log-entry-label">' + e.label + '</div><div class="log-entry-time">' + fmtTime(e.ts) + '</div></div>' +
+        '<div class="log-entry-xp" style="color:' + (e.xp>=0?'#4C8C6B':'#C9A24B') + ';">' + (e.xp>=0?('+'+e.xp):e.xp) + '</div>' +
+      '</div>';
+    });
+  }
+  document.getElementById("stats-tab").innerHTML = html;
+}
+
+let resetArmed = false;
+
+function renderSettings() {
+  let html = '<div class="section-label">Progress</div>';
+  html += '<div class="settings-note">Data is saved to this browser\'s local storage on this device only. Export a backup regularly if you want a copy you can restore from, especially before clearing browser data or switching apps.</div>';
+  html += '<button class="settings-btn" data-action="export">⬇ Export Backup (.json)</button>';
+
+  html += '<div class="section-label" style="margin-top:20px;">Import Backup</div>';
+  html += '<div class="settings-note">Paste the contents of a previously exported .json file below, then tap Load. (This avoids relying on a native file picker, which in-app browsers like Acode\'s preview often don\'t support.)</div>';
+  html += '<textarea id="importText" class="num-input" style="width:100%; height:110px; font-family:monospace; font-size:12px; resize:vertical;" placeholder="Paste backup JSON here..."></textarea>';
+  html += '<button class="settings-btn" data-action="import-paste" style="margin-top:8px;">⬆ Load Backup</button>';
+
+  html += '<div class="section-label" style="margin-top:20px;">Danger Zone</div>';
+  if (!resetArmed) {
+    html += '<button class="settings-btn danger" data-action="reset-arm">🗑 Reset All Progress</button>';
+  } else {
+    html += '<div class="card" style="border-color:#7A2E2E;">' +
+      '<div class="card-title" style="color:#E8968C;">This permanently erases all XP, coins, streaks, achievements and history. This cannot be undone.</div>' +
+      '<div class="input-row" style="padding-left:0; margin-top:12px; justify-content:flex-end; gap:10px;">' +
+        '<button class="log-btn" data-action="reset-cancel">Cancel</button>' +
+        '<button class="log-btn" style="background:#7A2E2E; border-color:#7A2E2E; color:#fff;" data-action="reset-confirm">Yes, Erase Everything</button>' +
+      '</div></div>';
+  }
+  html += '<div class="settings-note">Shields held: ' + (state.shields||0) + ' · Times fainted: ' + (state.faintCount||0) + '</div>';
+  document.getElementById("settings-tab").innerHTML = html;
+}
+
+function render() {
+  const streak = computeStreak();
+  if (streak > (state.bestStreak || 0)) { state.bestStreak = streak; save(); }
+  renderTopbar(streak);
+  renderCharacter(streak);
+  renderQuests();
+  renderBoss();
+  renderAchievements();
+  renderShop();
+  renderStats(streak);
+  renderSettings();
+}
+
+/* ============================= TAB SWITCHING ============================= */
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    activeTab = btn.dataset.tab;
+    ["character","quests","boss","achievements","shop","stats","settings"].forEach(t => {
+      document.getElementById(t + "-tab").style.display = (t === activeTab) ? "block" : "none";
+    });
+  });
+});
+
+/* ============================= EVENT DELEGATION ============================= */
+document.querySelector(".content").addEventListener("click", (e) => {
+  const target = e.target.closest("[data-action]");
+  if (!target) return;
+  const action = target.dataset.action;
+  const id = target.dataset.id;
+
+  if (action === "toggle-fixed") {
+    const t = TASKS.find(x => x.id === id);
+    const key = todayKey();
+    const done = state.completions[key] && state.completions[key][id];
+    if (done) undoTask(t); else completeTask(t, t.xp, t.label);
+  } else if (action === "undo") {
+    undoTask(TASKS.find(x => x.id === id));
+  } else if (action === "log-timed") {
+    const t = TASKS.find(x => x.id === id);
+    const draft = draftInput[id] != null ? draftInput[id] : t.fullMin;
+    const xp = (draft / t.fullMin) * t.xpFull;
+    completeTask(t, xp, t.label + " (" + draft + "min)", draft);
+  } else if (action === "log-hours") {
+    const t = TASKS.find(x => x.id === id);
+    const hrs = draftInput[id] != null ? draftInput[id] : 1;
+    const xp = hrs * t.xpPerHour;
+    completeTask(t, xp, t.label + " (" + hrs + "hr)", hrs);
+  } else if (action === "log-bonus") {
+    logBonus(BONUS.find(x => x.id === id));
+  } else if (action === "log-reps") {
+    const t = REP_TASKS.find(x => x.id === id);
+    const reps = draftInput["rep_" + id] != null ? draftInput["rep_" + id] : 20;
+    completeReps(t, reps);
+  } else if (action === "redeem-fixed") {
+    const r = REWARDS.find(x => x.id === id);
+    redeem(r.cost, r.label);
+  } else if (action === "redeem-timed") {
+    const r = REWARDS.find(x => x.id === id);
+    const mins = draftInput["r_"+id] != null ? draftInput["r_"+id] : 30;
+    const cost = Math.round(mins * r.ratePerMin);
+    redeem(cost, r.label + " (" + mins + "min)");
+  } else if (action === "buy-boost") {
+    buyBoost(BOOSTS.find(x => x.id === id));
+  } else if (action === "claim-weekly") {
+    claimWeeklyQuest(WEEKLY_QUESTS.find(x => x.id === id));
+  } else if (action === "claim-boss") {
+    claimBoss();
+  } else if (action === "export") {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "sadhana-ledger-backup-" + todayKey() + ".json";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast("Backup downloaded");
+  } else if (action === "import-paste") {
+    const ta = document.getElementById("importText");
+    const raw = ta ? ta.value.trim() : "";
+    if (!raw) { toast("Paste your backup JSON first"); return; }
+    try {
+      const parsed = JSON.parse(raw);
+      state = Object.assign({}, state, parsed);
+      save();
+      render();
+      toast("Backup restored");
+    } catch (err) {
+      toast("That doesn't look like valid backup JSON");
+    }
+  } else if (action === "reset-arm") {
+    resetArmed = true;
+    renderSettings();
+  } else if (action === "reset-cancel") {
+    resetArmed = false;
+    renderSettings();
+  } else if (action === "reset-confirm") {
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  }
+});
+
+document.querySelector(".content").addEventListener("input", (e) => {
+  const target = e.target.closest("[data-action]");
+  if (!target) return;
+  const action = target.dataset.action;
+  const id = target.dataset.id;
+  const val = Math.max(0, Number(target.value));
+
+  if (action === "draft") {
+    const t = TASKS.find(x => x.id === id);
+    draftInput[id] = t.type === "timed" ? Math.min(t.fullMin, val) : val;
+    render();
+    const el = document.querySelector('[data-action="draft"][data-id="' + id + '"]');
+    if (el) { el.focus(); el.selectionStart = el.selectionEnd = el.value.length; }
+  } else if (action === "reward-draft") {
+    draftInput["r_"+id] = val;
+    render();
+    const el = document.querySelector('[data-action="reward-draft"][data-id="' + id + '"]');
+    if (el) { el.focus(); el.selectionStart = el.selectionEnd = el.value.length; }
+  } else if (action === "rep-draft") {
+    draftInput["rep_" + id] = val;
+    render();
+    const el = document.querySelector('[data-action="rep-draft"][data-id="' + id + '"]');
+    if (el) { el.focus(); el.selectionStart = el.selectionEnd = el.value.length; }
+  }
+});
+
+/* ============================= INIT ============================= */
+load();
+processRollover();
+checkAchievements();
+render();
+</script>
+</body>
+</html>
